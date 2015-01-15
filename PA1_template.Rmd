@@ -1,25 +1,106 @@
+Title: Reproducible Research: Peer Assessment 1: Submission
+=========================================================
+
+output: PA1_Template.html
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+
+This is an R Markdown document used for the class Reproducible Research: Peer Assessment 1.
+
+**Data Loading and Histogram, Mean, and Median Code**
+This code assumes the activities.csv file is in the working directory.  This code will load the data into the current environment.
 
 
-## Loading and preprocessing the data
+```{r echo = TRUE}
+data <- read.csv("activity.csv")
+dailyStepData <- aggregate(data$steps, list(data$date), sum)
+colnames(dailyStepData) <- c("Dates", "Steps")
+hist(dailyStepData$Steps, xlab = "Number of Steps", ylab = "Number of Days", main = "Histogram of Number of Steps Daily")
+mean(dailyStepData$Steps, na.rm = TRUE)
+median(dailyStepData$Steps, na.rm = TRUE)
+
+```
+
+**Daily Pattern Activity Code**
+
+This code describes the average number of steps every five minutes and tells which interval has the maximum number of steps.
 
 
+```{r, echo=TRUE}
 
-## What is mean total number of steps taken per day?
+intervalStepData <- aggregate(data$steps, list(data$interval), FUN=mean, na.rm = TRUE)
+colnames(intervalStepData) <- c("interval", "stepAverage")
+plot(intervalStepData, type = 'l', xlab = "Time Interval", ylab = "Average Number of Steps", main = "Number of Steps Per Five Minutes")
+maxSteps = intervalStepData$stepAverage == max(intervalStepData$stepAverage)
+intervalStepData[maxSteps == TRUE,]
 
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
+```
 
 
-## Are there differences in activity patterns between weekdays and weekends?
+**Inputting Missing Values Code**
+
+This code describes the average number of steps every five minutes and tells which interval has the maximum number of steps.
+
+The number of cases that have NA values: 
+```{r, echo=TRUE}
+
+completeCasesVector <- complete.cases(data)
+length(completeCasesVector[completeCasesVector == FALSE])
+missingDataSet <- data
+for(i in 1:nrow(missingDataSet)){
+  
+  if(completeCasesVector[i] == FALSE)
+  {
+    intervalVariable = missingDataSet[i, 3]
+    ivsOne = intervalStepData[intervalStepData$interval == intervalVariable,][2]
+    missingDataSet[i, 1] = ivsOne    
+  }
+
+}
+
+dailyFilledInStepData <- aggregate(missingDataSet$steps, list(missingDataSet$date), sum)
+colnames(dailyFilledInStepData) <- c("Dates", "Steps")
+hist(dailyFilledInStepData$Steps, xlab = "Number of Steps", ylab = "Number of Days", main = "Histogram of Number of Steps Daily (Synthesized)")
+mean(dailyFilledInStepData$Steps)
+median(dailyFilledInStepData$Steps)
+
+```
+
+
+Conclusions:
+
+The shape of each histogram is the same, approximately normal, and while the means are the same (using the
+interval replacement method) the medians differ slightly (10765 on the original data set versus 10766.19 on
+the data set with synthesized values).  This should be expected as the number of values is increased on the
+second data set but slightly and therefore the median should also change (assuming the NA values are ignored
+in the original calculation of the median on the original data set).  It should also be noted that on the
+sythesized data set the number of days (the frequency) is slightly higher with the max frequency reaching
+approximately 35 while on the original dataset the maximum frequency was approximately 25.  This would make
+sense as the substitute values should increase the number of days with valid values thereby increasing the
+height of the some values in the histogram.
+
+**Weekend vs. Weekday Analysis**
+
+This section describes the average number of steps taken every five minutes on weekdays versus weekends.
+
+```{r, echo=TRUE}
+
+missingDataSetWithWeekend <- missingDataSet
+missingDataSetWithWeekend$WeekDay <- ifelse((as.POSIXlt(missingDataSetWithWeekend$date)$wday == 6 | as.POSIXlt(missingDataSetWithWeekend$date)$wday == 0), "weekend", "weekday" )
+missingDataSetWithWeekend$WeekDay = as.factor(missingDataSetWithWeekend$WeekDay)
+aggMissingDataSetWithWeekend <- aggregate(missingDataSetWithWeekend$steps, list(missingDataSetWithWeekend$WeekDay, missingDataSetWithWeekend$interval), FUN=mean, na.rm = TRUE)
+colnames(aggMissingDataSetWithWeekend) <- c("weekend", "interval", "steps")
+
+intervalStepData <- aggregate(data$steps, list(data$interval), FUN=mean, na.rm = TRUE)
+dailyFilledInStepData <- aggregate(missingDataSet$steps, list(missingDataSet$date), sum)
+colnames(dailyFilledInStepData) <- c("Dates", "Steps")
+
+library(lattice)
+
+xyplot(steps~interval|weekend,  data = aggMissingDataSetWithWeekend, 
+       main="Number of Steps: Weekday vs. Weekend", layout = c(1, 2), 
+       ylab="Number Of Steps", xlab="Interval (Per Five Minutes)", type = "l")
+
+mean(aggMissingDataSetWithWeekend$steps)
+median(aggMissingDataSetWithWeekend$steps)
+```
+
